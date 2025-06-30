@@ -106,17 +106,17 @@ function createComparisonChart() {
             datasets: [{
                 label: 'AI 도입 전',
                 data: [100, 15, 70, 100, 60],
-                backgroundColor: 'rgba(127, 140, 141, 0.8)',
-                borderColor: 'rgba(127, 140, 141, 1)',
+                backgroundColor: 'rgba(100, 116, 139, 0.8)',
+                borderColor: 'rgba(100, 116, 139, 1)',
                 borderWidth: 2,
-                borderRadius: 8
+                borderRadius: 12
             }, {
                 label: 'AI 도입 후',
                 data: [25, 2, 95, 250, 180],
-                backgroundColor: 'rgba(212, 175, 55, 0.8)',
-                borderColor: 'rgba(212, 175, 55, 1)',
+                backgroundColor: 'rgba(6, 182, 212, 0.8)',
+                borderColor: 'rgba(6, 182, 212, 1)',
                 borderWidth: 2,
-                borderRadius: 8
+                borderRadius: 12
             }]
         },
         options: {
@@ -135,10 +135,10 @@ function createComparisonChart() {
                     }
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(26, 35, 50, 0.9)',
-                    titleColor: '#d4af37',
+                    backgroundColor: 'rgba(10, 22, 40, 0.9)',
+                    titleColor: '#06b6d4',
                     bodyColor: 'white',
-                    borderColor: '#d4af37',
+                    borderColor: '#06b6d4',
                     borderWidth: 1,
                     callbacks: {
                         label: function(context) {
