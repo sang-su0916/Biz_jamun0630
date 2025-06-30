@@ -1,12 +1,26 @@
 // DOM 로드 완료 후 실행
 document.addEventListener('DOMContentLoaded', function() {
-    // AOS 애니메이션 초기화
+    // AOS 애니메이션 초기화 - 로드맵 최적화
     AOS.init({
-        duration: 1000,
-        easing: 'ease-in-out',
+        duration: 600,
+        easing: 'ease-out-cubic',
         once: true,
-        offset: 100
+        offset: 50,
+        delay: 0,
+        disable: window.innerWidth < 768 ? false : false, // 모바일에서도 활성화
+        startEvent: 'DOMContentLoaded',
+        throttleDelay: 99,
+        debounceDelay: 50,
+        anchorPlacement: 'top-bottom'
     });
+    
+    // 로드맵 섹션 특별 처리
+    setTimeout(() => {
+        const roadmapElements = document.querySelectorAll('#roadmap [data-aos]');
+        roadmapElements.forEach((el, index) => {
+            el.style.transition = 'all 0.6s ease';
+        });
+    }, 100);
 
     // 네비게이션 기능
     initNavigation();
@@ -24,30 +38,106 @@ document.addEventListener('DOMContentLoaded', function() {
     initMobileMenu();
 });
 
-// 네비게이션 초기화
+// 성능 최적화를 위한 throttle 함수 추가
+function throttle(func, limit) {
+    let inThrottle;
+    return function() {
+        const args = arguments;
+        const context = this;
+        if (!inThrottle) {
+            func.apply(context, args);
+            inThrottle = true;
+            setTimeout(() => inThrottle = false, limit);
+        }
+    }
+}
+
+// 네비게이션 초기화 - 개선된 버전
 function initNavigation() {
     const navbar = document.querySelector('.navbar');
+    let isScrolling = false;
     
-    // 스크롤 시 네비게이션 스타일 변경
-    window.addEventListener('scroll', function() {
+    // 스크롤 시 네비게이션 스타일 변경 - throttle 적용
+    const handleScroll = throttle(function() {
         if (window.scrollY > 100) {
             navbar.classList.add('scrolled');
         } else {
             navbar.classList.remove('scrolled');
         }
-    });
+    }, 16); // 60fps
+    
+    window.addEventListener('scroll', handleScroll, { passive: true });
 
-    // 부드러운 스크롤
+    // 부드러운 스크롤 - 로드맵 최적화 버전
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
         anchor.addEventListener('click', function (e) {
             e.preventDefault();
-            const target = document.querySelector(this.getAttribute('href'));
-            if (target) {
-                const offsetTop = target.offsetTop - 80;
-                window.scrollTo({
-                    top: offsetTop,
-                    behavior: 'smooth'
-                });
+            
+            // 이미 스크롤 중이면 중단
+            if (isScrolling) return;
+            
+            const targetId = this.getAttribute('href');
+            const target = document.querySelector(targetId);
+            
+            if (target && targetId) {
+                isScrolling = true;
+                
+                // 네비게이션 높이 동적 계산
+                const navHeight = navbar ? navbar.getBoundingClientRect().height : 80;
+                
+                // 로드맵 섹션 특별 처리
+                let offsetAdjustment = 30;
+                if (targetId === '#roadmap') {
+                    offsetAdjustment = 50; // 로드맵 섹션에 더 많은 여백
+                }
+                
+                // 현재 스크롤 위치에서 타겟까지의 거리 계산
+                const targetTop = target.offsetTop;
+                const finalPosition = targetTop - navHeight - offsetAdjustment;
+                
+                // 스크롤 애니메이션 실행
+                const startPosition = window.pageYOffset;
+                const distance = finalPosition - startPosition;
+                const duration = Math.min(800, Math.abs(distance) * 0.5); // 거리에 따른 동적 duration
+                
+                let startTime = null;
+                
+                function scrollAnimation(currentTime) {
+                    if (startTime === null) startTime = currentTime;
+                    const timeElapsed = currentTime - startTime;
+                    const progress = Math.min(timeElapsed / duration, 1);
+                    
+                    // easeInOutCubic 이징 함수
+                    const ease = progress < 0.5 
+                        ? 4 * progress * progress * progress 
+                        : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+                    
+                    window.scrollTo(0, startPosition + (distance * ease));
+                    
+                    if (progress < 1) {
+                        requestAnimationFrame(scrollAnimation);
+                    } else {
+                        isScrolling = false;
+                        
+                        // 최종 위치 미세 조정
+                        setTimeout(() => {
+                            const finalCheck = target.offsetTop - navHeight - offsetAdjustment;
+                            if (Math.abs(window.pageYOffset - finalCheck) > 5) {
+                                window.scrollTo(0, finalCheck);
+                            }
+                        }, 50);
+                    }
+                }
+                
+                requestAnimationFrame(scrollAnimation);
+                
+                // 모바일 메뉴가 열려있다면 닫기
+                const navMenu = document.querySelector('.nav-menu');
+                const navToggle = document.querySelector('.nav-toggle');
+                if (navMenu && navMenu.classList.contains('active')) {
+                    navMenu.classList.remove('active');
+                    navToggle.classList.remove('active');
+                }
             }
         });
     });
@@ -204,12 +294,13 @@ function createComparisonChart() {
     });
 }
 
-// 스크롤 효과 초기화
+// 스크롤 효과 초기화 - 개선된 버전
 function initScrollEffects() {
     // 섹션 활성화 표시
     const sections = document.querySelectorAll('section[id]');
     const navLinks = document.querySelectorAll('.nav-menu a[href^="#"]');
     
+    // IntersectionObserver 설정 최적화
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
@@ -225,22 +316,25 @@ function initScrollEffects() {
             }
         });
     }, {
-        threshold: 0.3,
-        rootMargin: '-80px 0px -80px 0px'
+        threshold: 0.2,
+        rootMargin: '-100px 0px -100px 0px'
     });
     
     sections.forEach(section => observer.observe(section));
     
-    // 패럴랙스 효과
-    window.addEventListener('scroll', function() {
+    // 패럴랙스 효과 - throttle 적용 및 최적화
+    const parallaxHandler = throttle(function() {
         const scrolled = window.pageYOffset;
         const parallaxElements = document.querySelectorAll('.hero-background');
         
         parallaxElements.forEach(element => {
-            const speed = 0.5;
-            element.style.transform = `translateY(${scrolled * speed}px)`;
+            const speed = 0.3; // 속도 조정
+            const yPos = -(scrolled * speed);
+            element.style.transform = `translate3d(0, ${yPos}px, 0)`;
         });
-    });
+    }, 16);
+    
+    window.addEventListener('scroll', parallaxHandler, { passive: true });
 }
 
 // 모바일 메뉴 초기화
@@ -319,98 +413,124 @@ AI 경영자문 도입 가이드북
     }, 500);
 }
 
-// 키보드 네비게이션
+// 키보드 네비게이션 - 개선된 버전
 document.addEventListener('keydown', function(e) {
+    // 입력 필드에서는 키보드 네비게이션 비활성화
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        return;
+    }
+    
     const sections = document.querySelectorAll('section[id]');
+    const navbar = document.querySelector('.navbar');
+    const navHeight = navbar ? navbar.offsetHeight : 0;
     let currentSection = 0;
     
     // 현재 보이는 섹션 찾기
     sections.forEach((section, index) => {
         const rect = section.getBoundingClientRect();
-        if (rect.top <= 100 && rect.bottom >= 100) {
+        if (rect.top <= navHeight + 100 && rect.bottom >= navHeight + 100) {
             currentSection = index;
         }
     });
+    
+    function scrollToSection(sectionIndex) {
+        if (sections[sectionIndex]) {
+            const target = sections[sectionIndex];
+            const targetRect = target.getBoundingClientRect();
+            const currentScroll = window.pageYOffset;
+            const targetOffset = currentScroll + targetRect.top - navHeight - 30;
+            
+            window.scrollTo({
+                top: targetOffset,
+                behavior: 'smooth'
+            });
+        }
+    }
     
     switch(e.key) {
         case 'ArrowDown':
         case 'PageDown':
             e.preventDefault();
             if (currentSection < sections.length - 1) {
-                sections[currentSection + 1].scrollIntoView({ 
-                    behavior: 'smooth',
-                    block: 'start'
-                });
+                scrollToSection(currentSection + 1);
             }
             break;
         case 'ArrowUp':
         case 'PageUp':
             e.preventDefault();
             if (currentSection > 0) {
-                sections[currentSection - 1].scrollIntoView({ 
-                    behavior: 'smooth',
-                    block: 'start'
-                });
+                scrollToSection(currentSection - 1);
             }
             break;
         case 'Home':
             e.preventDefault();
-            sections[0].scrollIntoView({ 
-                behavior: 'smooth',
-                block: 'start'
-            });
+            scrollToSection(0);
             break;
         case 'End':
             e.preventDefault();
-            sections[sections.length - 1].scrollIntoView({ 
-                behavior: 'smooth',
-                block: 'start'
-            });
+            scrollToSection(sections.length - 1);
             break;
     }
 });
 
-// 터치 제스처 지원 (모바일)
+// 터치 제스처 지원 - 개선된 버전
 let touchStartY = 0;
 let touchEndY = 0;
+let touchStartTime = 0;
 
 document.addEventListener('touchstart', function(e) {
     touchStartY = e.changedTouches[0].screenY;
+    touchStartTime = Date.now();
 }, { passive: true });
 
 document.addEventListener('touchend', function(e) {
     touchEndY = e.changedTouches[0].screenY;
-    handleSwipe();
+    const touchDuration = Date.now() - touchStartTime;
+    
+    // 터치 시간이 너무 길면 무시 (드래그 구분)
+    if (touchDuration < 300) {
+        handleSwipe();
+    }
 }, { passive: true });
 
 function handleSwipe() {
-    const swipeThreshold = 50;
+    const swipeThreshold = 80;
     const diff = touchStartY - touchEndY;
     
     if (Math.abs(diff) > swipeThreshold) {
         const sections = document.querySelectorAll('section[id]');
+        const navbar = document.querySelector('.navbar');
+        const navHeight = navbar ? navbar.offsetHeight : 0;
         let currentSection = 0;
         
         // 현재 섹션 찾기
         sections.forEach((section, index) => {
             const rect = section.getBoundingClientRect();
-            if (rect.top <= 100 && rect.bottom >= 100) {
+            if (rect.top <= navHeight + 100 && rect.bottom >= navHeight + 100) {
                 currentSection = index;
             }
         });
         
+        function scrollToSection(sectionIndex) {
+            if (sections[sectionIndex]) {
+                const target = sections[sectionIndex];
+                const targetRect = target.getBoundingClientRect();
+                const currentScroll = window.pageYOffset;
+                const targetOffset = currentScroll + targetRect.top - navHeight - 30;
+                
+                window.scrollTo({
+                    top: targetOffset,
+                    behavior: 'smooth'
+                });
+            }
+        }
+        
         if (diff > 0 && currentSection < sections.length - 1) {
             // 위로 스와이프 - 다음 섹션
-            sections[currentSection + 1].scrollIntoView({ 
-                behavior: 'smooth',
-                block: 'start'
-            });
+            scrollToSection(currentSection + 1);
         } else if (diff < 0 && currentSection > 0) {
             // 아래로 스와이프 - 이전 섹션
-            sections[currentSection - 1].scrollIntoView({ 
-                behavior: 'smooth',
-                block: 'start'
-            });
+            scrollToSection(currentSection - 1);
         }
     }
 }
